@@ -78,7 +78,7 @@ class SubtitleService {
       final zip = ZipDecoder().decodeBytes(bytes);
       for (final file in zip.files) {
         if (file.isFile && file.name.toLowerCase().endsWith('.srt')) {
-          final content = file.content;
+          return Uint8List.fromList(content);
           return Uint8List.fromList(content is List<int> ? content : <int>[]);
         }
       }
