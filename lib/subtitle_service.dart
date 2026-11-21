@@ -78,8 +78,7 @@ class SubtitleService {
       final zip = ZipDecoder().decodeBytes(bytes);
       for (final file in zip.files) {
         if (file.isFile && file.name.toLowerCase().endsWith('.srt')) {
-          return Uint8List.fromList(content);
-          return Uint8List.fromList(content is List<int> ? content : <int>[]);
+          return Uint8List.fromList(file.content);
         }
       }
       throw StateError('ZIP não contém arquivo .srt.');
