@@ -21,6 +21,13 @@ jobs:
           cache: true
       - name: Gerar estrutura Android Flutter
         run: flutter create --platforms=android --project-name omegasub_android --org com.omegasub .
+      - name: Remover teste padrão gerado pelo Flutter
+        run: |
+          # flutter create gera um teste de exemplo para MyApp, que não existe no OmegaSub.
+          # Mantemos os testes reais do projeto (ex.: test/video_info_test.dart).
+          if [ -f test/widget_test.dart ]; then
+            rm test/widget_test.dart
+          fi
       - name: Configurar nome e acesso à internet
         run: |
           python3 - <<'PY'
