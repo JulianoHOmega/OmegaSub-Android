@@ -107,6 +107,7 @@ class _OmegaHomeState extends State<OmegaHome> {
       selected = null;
       status = 'Procurando legendas PT-BR...';
     });
+    bool shouldAutoDownload = false;
     try {
       final list = await SubtitleService.search(target,
           alternateTitle: alternateTitle,
@@ -119,6 +120,7 @@ class _OmegaHomeState extends State<OmegaHome> {
       setState(() {
         results = list;
         selected = list.isEmpty ? null : list.first;
+        shouldAutoDownload = automatic && list.isNotEmpty && list.first.score > 0;
         status = list.isEmpty
             ? 'A fonte respondeu, mas não foram encontradas legendas PT-BR prontas para esse título. Tente informar o título original no modo manual.'
             : '${list.length} legenda(s) encontrada(s).';
@@ -130,6 +132,9 @@ class _OmegaHomeState extends State<OmegaHome> {
       }
     } finally {
       if (mounted) setState(() => busy = false);
+    }
+    if (mounted && shouldAutoDownload && searchId == _searchSequence) {
+      await download();
     }
   }
 
@@ -263,10 +268,7 @@ class _OmegaHomeState extends State<OmegaHome> {
                   onPressed: busy || selected == null ? null : download,
                   icon: const Icon(Icons.download),
                   label: const Text('Baixar legenda selecionada')),
-              const SizedBox(height: 18),
-              const Text(
-                  'Busca local com Subliminal. É necessária conexão à internet para consultar os provedores.',
-                  style: TextStyle(fontSize: 12, color: Colors.white54)),
+
             ],
           ),
         ),
