@@ -128,7 +128,9 @@ jobs:
           PYCODE
 
       - name: Compilar APK
-        run: flutter build apk --debug
+        env:
+          OMEGASUB_API_URL: ${{ vars.OMEGASUB_API_URL }}
+        run: flutter build apk --debug --dart-define=OMEGASUB_API_URL="$OMEGASUB_API_URL"
 
       - name: Nomear OmegaSub.apk
         run: cp build/app/outputs/flutter-apk/app-debug.apk OmegaSub.apk
