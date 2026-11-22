@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Legendas PT-BR
-Comment=Busca e download de legendas em portugues brasileiro
-Exec=Legendas-PTBR
-Icon=legendas-ptbr
-Terminal=false
-Categories=AudioVideo;Video;
-StartupWMClass=Legendas-PTBR
