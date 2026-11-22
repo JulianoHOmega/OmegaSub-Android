@@ -37,6 +37,14 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Preparar wheel universal srt para Chaquopy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p native/wheels
+          python -m pip wheel --no-deps --wheel-dir native/wheels "srt==3.5.3"
+          ls -lh native/wheels/srt-3.5.3-py3-none-any.whl
+
       - name: Gerar estrutura Android Flutter
         run: flutter create --platforms=android --project-name omegasub_android --org com.omegasub .
 
