@@ -1,6 +1,7 @@
 # Patches Gradle Flutter generated in CI
 from pathlib import Path
 import re
+import os
 
 root = Path('android')
 settings = root / 'settings.gradle.kts'
@@ -26,6 +27,7 @@ s += """
 chaquopy {
     defaultConfig {
         version = "3.11"
+        buildPython = System.getenv("OMEGASUB_BUILD_PYTHON") ?: "python3.11"
         pip {
             install("subliminal>=2.2,<3")
         }
