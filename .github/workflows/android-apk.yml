@@ -28,6 +28,9 @@ jobs:
       - name: Gerar estrutura Android Flutter
         run: flutter create --platforms=android --project-name omegasub_android --org com.omegasub .
 
+      - name: Integrar Python local com Chaquopy
+        run: python3 scripts/configure_android.py
+
       - name: Remover teste padrão gerado pelo Flutter
         run: |
           if [ -f test/widget_test.dart ]; then
@@ -128,9 +131,7 @@ jobs:
           PYCODE
 
       - name: Compilar APK
-        env:
-          OMEGASUB_API_URL: ${{ vars.OMEGASUB_API_URL }}
-        run: flutter build apk --debug --dart-define=OMEGASUB_API_URL="$OMEGASUB_API_URL"
+        run: flutter build apk --debug
 
       - name: Nomear OmegaSub.apk
         run: cp build/app/outputs/flutter-apk/app-debug.apk OmegaSub.apk
