@@ -99,6 +99,34 @@ jobs:
           print(f'compileSdk atualizado para 36 em {path}')
           PY
 
+      - name: Atualizar compileSdk do plugin file_picker
+        shell: bash
+        run: |
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import json
+          import re
+
+          metadata = Path('.flutter-plugins-dependencies')
+          if not metadata.exists():
+              raise SystemExit('Metadados dos plugins Flutter não encontrados')
+          data = json.loads(metadata.read_text())
+          plugins = [p for p in data.get('plugins', {}).get('android', []) if p.get('name') == 'file_picker']
+          if len(plugins) != 1:
+              raise SystemExit(f'Esperado um plugin file_picker Android; encontrados {len(plugins)}')
+          base = Path(plugins[0]['path']) / 'android'
+          gradle = next((p for p in (base / 'build.gradle', base / 'build.gradle.kts') if p.is_file()), None)
+          if gradle is None:
+              raise SystemExit(f'Gradle do file_picker não encontrado em {base}')
+          source = gradle.read_text()
+          pattern = r'(?m)^(\s*compileSdk(?:Version)?\s*(?:=|\s)\s*)(?:flutter\.compileSdkVersion|\d+)(\s*)$'
+          updated, count = re.subn(pattern, r'\g<1>36\g<2>', source)
+          if count != 1:
+              raise SystemExit(f'Não foi possível ajustar compileSdk em {gradle}; ocorrências: {count}')
+          gradle.write_text(updated)
+          print(f'compileSdk do file_picker atualizado para 36: {gradle}')
+          PYCODE
+
       - name: Compilar APK
         run: flutter build apk --debug
 
