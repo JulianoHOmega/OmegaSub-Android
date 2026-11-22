@@ -65,7 +65,7 @@ class SubtitleService {
   static List<Uri> parseSearchPage(String html) {
     final found = <Uri>[];
     final seen = <String>{};
-    final re = RegExp(r"href\s*=\s*['\"]([^'\"]*subs/\d+/[^'\"]+\.html)['\"]", caseSensitive: false);
+    final re = RegExp(r'''href\s*=\s*['"]([^'"]*subs/\d+/[^'"]+\.html)['"]''', caseSensitive: false);
     for (final match in re.allMatches(html)) {
       final url = Uri.parse(_origin).resolve(match.group(1)!.replaceAll('&amp;', '&'));
       if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' && seen.add(url.toString())) {
@@ -81,10 +81,10 @@ class SubtitleService {
     final seen = <String>{};
     for (final match in RegExp(r'<a\b[^>]*>', caseSensitive: false).allMatches(html)) {
       final tag = match.group(0)!;
-      final id = RegExp(r"id\s*=\s*['\"]download_([^'\"]+)['\"]", caseSensitive: false)
+      final id = RegExp(r'''id\s*=\s*['"]download_([^'"]+)['"]''', caseSensitive: false)
           .firstMatch(tag)?.group(1)?.toLowerCase();
       if (!{'pb', 'pt', 'pt-br', 'pt_br'}.contains(id)) continue;
-      final href = RegExp(r"href\s*=\s*['\"]([^'\"]+\.srt(?:\?[^'\"]*)?)['\"]", caseSensitive: false)
+      final href = RegExp(r'''href\s*=\s*['"]([^'"]+\.srt(?:\?[^'"]*)?)['"]''', caseSensitive: false)
           .firstMatch(tag)?.group(1);
       if (href == null) continue;
       final url = Uri.parse(_origin).resolve(href.replaceAll('&amp;', '&'));
