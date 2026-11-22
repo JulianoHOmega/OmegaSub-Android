@@ -42,3 +42,8 @@ Execute o workflow `Compilar OmegaSub Android`. O artifact será `OmegaSub.apk`.
 
 
 Veja [MIGRACAO_LOCAL.md](MIGRACAO_LOCAL.md) para a versão experimental com Subliminal embutido.
+
+
+## Correção experimental da dependência srt (22/11/2026)
+
+O GitHub Actions gera um wheel universal `srt==3.5.3` no CI e o Chaquopy o encontra via `--find-links`. Isso contorna o erro `No matching distributions ... srt` observado no log. A compilação e a busca no celular **ainda precisam ser validadas**; outras dependências podem falhar. Não remova o serviço Render antes de confirmar a busca e o download local.

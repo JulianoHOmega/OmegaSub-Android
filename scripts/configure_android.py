@@ -29,6 +29,9 @@ chaquopy {
         version = "3.11"
         buildPython = listOf(System.getenv("OMEGASUB_BUILD_PYTHON") ?: "python3.11")
         pip {
+            // Wheel universal criado no CI para contornar a ausência de srt no índice Android.
+            options("--find-links", "${project.rootDir}/../native/wheels")
+            install("srt==3.5.3")
             install("subliminal>=2.2,<3")
         }
     }
