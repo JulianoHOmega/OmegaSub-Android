@@ -58,14 +58,21 @@ jobs:
       - name: Executar testes
         run: flutter test
 
-      - name: Configurar ferramentas do Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Instalar Android SDK 36
+        shell: bash
         run: |
           set -euo pipefail
-          command -v sdkmanager
-          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "Android SDK: $SDK_ROOT"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)
+          fi
+          if [ -z "${SDKMANAGER:-}" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager não encontrado nas ferramentas Android do runner"
+            exit 1
+          fi
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Atualizar Android compileSdk
         run: |
