@@ -1,85 +1,99 @@
 name: Compilar OmegaSub Android
+
 on:
   push:
     branches: [main, master]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
       - name: Gerar estrutura Android Flutter
         run: flutter create --platforms=android --project-name omegasub_android --org com.omegasub .
+
       - name: Remover teste padrão gerado pelo Flutter
         run: |
-          # flutter create gera um teste de exemplo para MyApp, que não existe no OmegaSub.
-          # Mantemos os testes reais do projeto (ex.: test/video_info_test.dart).
           if [ -f test/widget_test.dart ]; then
             rm test/widget_test.dart
           fi
+
       - name: Configurar nome e acesso à internet
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('android/app/src/main/AndroidManifest.xml')
-          s=p.read_text()
-          s=s.replace('<application', '<uses-permission android:name="android.permission.INTERNET"/>\n    <application', 1)
-          s=s.replace('android:label="omegasub_android"', 'android:label="OmegaSub"')
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace('<application', '<uses-permission android:name="android.permission.INTERNET"/>\n    <application', 1)
+          s = s.replace('android:label="omegasub_android"', 'android:label="OmegaSub"')
           p.write_text(s)
           PY
+
       - name: Instalar dependências
         run: flutter pub get
+
       - name: Aplicar ícone OmegaSub
         run: dart run flutter_launcher_icons
+
       - name: Analisar código
         run: flutter analyze --no-fatal-infos
+
       - name: Executar testes
         run: flutter test
-      - name: Compilar APK
-        
+
+      - name: Instalar Android SDK 36
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
       - name: Atualizar Android compileSdk
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          for name in [
-              "android/app/build.gradle.kts",
-              "android/app/build.gradle",
-          ]:
-              path = Path(name)
-              if not path.exists():
-                  continue
+          paths = [Path('android/app/build.gradle.kts'), Path('android/app/build.gradle')]
+          path = next((p for p in paths if p.is_file()), None)
+          if path is None:
+              raise SystemExit('Arquivo Gradle Android não encontrado')
 
-              source = path.read_text()
-              updated = re.sub(
-                  r'compileSdk(?:Version)?\s*(?:=|\()\s*(?:flutter\.compileSdkVersion|\d+)\s*\)?',
-                  'compileSdk = 36' if name.endswith('.kts') else 'compileSdkVersion 36',
-                  source,
-              )
-              if source == updated:
-                  raise SystemExit(f"Não foi possível atualizar {name}")
-              path.write_text(updated)
-              print(f"Atualizado: {name}")
-              break
+          source = path.read_text()
+          if path.suffix == '.kts':
+              pattern = r'(?m)^(\s*)compileSdk\s*=\s*(?:flutter\.compileSdkVersion|\d+)\s*$'
+              replacement = r'\g<1>compileSdk = 36'
           else:
-              raise SystemExit("Arquivo Gradle Android não encontrado")
+              pattern = r'(?m)^(\s*)compileSdkVersion\s*(?:\(\s*)?(?:flutter\.compileSdkVersion|\d+)\s*\)?\s*$'
+              replacement = r'\g<1>compileSdkVersion 36'
+          updated, count = re.subn(pattern, replacement, source)
+          if count != 1:
+              raise SystemExit(f'Esperada 1 configuração compileSdk em {path}; encontradas {count}')
+          path.write_text(updated)
+          print(f'compileSdk atualizado para 36 em {path}')
           PY
 
+      - name: Compilar APK
         run: flutter build apk --debug
+
       - name: Nomear OmegaSub.apk
         run: cp build/app/outputs/flutter-apk/app-debug.apk OmegaSub.apk
+
       - uses: actions/upload-artifact@v4
         with:
           name: OmegaSub-Android
