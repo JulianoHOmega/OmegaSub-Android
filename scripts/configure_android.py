@@ -27,7 +27,7 @@ s += """
 chaquopy {
     defaultConfig {
         version = "3.11"
-        buildPython = System.getenv("OMEGASUB_BUILD_PYTHON") ?: "python3.11"
+        buildPython = listOf(System.getenv("OMEGASUB_BUILD_PYTHON") ?: "python3.11")
         pip {
             install("subliminal>=2.2,<3")
         }
