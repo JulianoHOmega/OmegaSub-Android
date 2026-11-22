@@ -58,10 +58,14 @@ jobs:
       - name: Executar testes
         run: flutter test
 
+      - name: Configurar ferramentas do Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Instalar Android SDK 36
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          set -euo pipefail
+          command -v sdkmanager
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Atualizar Android compileSdk
         run: |
