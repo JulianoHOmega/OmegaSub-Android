@@ -1,49 +1,97 @@
-# OmegaSub Android — Flutter + Subliminal
+<div align="center">
 
-Este projeto mantém a interface Flutter e o ícone OmegaSub. A busca de legendas é feita **pelo Subliminal Python**, executado em um backend HTTPS. O APK não precisa de chave de API nem de conta para o usuário final, mas **depende de um servidor mantido pelo responsável pelo aplicativo**.
+# 🎬 OmegaSub Android
 
-## 1. Iniciar o backend Python
+### Legendas em português brasileiro, direto no seu celular.
 
-Em um computador/servidor com Python 3.12:
+**Simples • Gratuito • Sem cadastro • Subliminal local**
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app:app --host 127.0.0.1 --port 8000
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-v1.0-dc2626?style=for-the-badge)](https://github.com/JulianoHOmega/OmegaSub-Android/releases/tag/v1.0)
+[![Android](https://img.shields.io/badge/Android-APK-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/JulianoHOmega/OmegaSub-Android/releases)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-2563eb?style=for-the-badge)](LICENSE)
+
+**[⬇️ BAIXAR OMEGASUB ANDROID v1.0](https://github.com/JulianoHOmega/OmegaSub-Android/releases/download/v1.0/OmegaSub-Android.zip)**
+
+[Releases](https://github.com/JulianoHOmega/OmegaSub-Android/releases) · [Reportar problema](https://github.com/JulianoHOmega/OmegaSub-Android/issues) · [Contribuir](CONTRIBUTING.md)
+
+</div>
+
+---
+
+## ✨ Sobre o projeto
+
+O **OmegaSub Android** ajuda você a encontrar e baixar legendas **PT-BR** para filmes e séries a partir de um vídeo armazenado no celular. A busca utiliza o **Subliminal executado localmente no aplicativo**, sem depender de um servidor próprio ou do Render.
+
+> **Importante:** a pesquisa ainda requer conexão com a internet para consultar os provedores externos. A disponibilidade das legendas varia conforme cada provedor.
+
+## 🚀 Funcionalidades
+
+- 🎞️ **Seleção de vídeo:** escolha um arquivo diretamente no Android.
+- 🔎 **Identificação pelo nome:** o app identifica informações como título e ano a partir do arquivo.
+- ⚡ **Modo automático:** pesquisa e tenta baixar a legenda mais compatível.
+- 🖐️ **Modo manual:** consulte resultados e escolha a legenda desejada.
+- 🇧🇷 **Foco em PT-BR:** pesquisa de legendas em português brasileiro.
+- 📝 **Renomeação automática:** salva a legenda com o nome-base do vídeo e extensão `.srt`.
+- 📂 **Escolha da pasta:** utiliza o acesso autorizado pelo Android para salvar o arquivo.
+- 🔒 **Sem cadastro:** não exige criar conta no OmegaSub.
+
+## 📥 Download e instalação
+
+1. Acesse o **[download da versão v1.0](https://github.com/JulianoHOmega/OmegaSub-Android/releases/download/v1.0/OmegaSub-Android.zip)**.
+2. Extraia o arquivo ZIP e localize o APK incluído no pacote.
+3. Abra o APK no celular e autorize a instalação de aplicativos dessa origem, caso o Android solicite.
+4. Abra o **OmegaSub** e selecione um vídeo.
+
+**Segurança:** instale somente arquivos obtidos nas releases oficiais do projeto. O Android pode exibir avisos para APKs distribuídos fora da Play Store.
+
+## 📱 Como usar
+
+1. Toque em **Selecionar vídeo**.
+2. Aguarde a identificação e a busca de legendas.
+3. Com o **modo automático** ativado, o app tenta baixar a melhor opção.
+4. Se preferir, consulte a lista e escolha uma legenda manualmente.
+5. Autorize uma pasta de destino quando o Android solicitar.
+
+**Exemplo de nomes:**
+
+```text
+A odisseia (2026).mp4
+A odisseia (2026).srt
 ```
 
-Teste: `http://127.0.0.1:8000/health`. Para acesso de celulares externos, publique o backend com **HTTPS**, usando um serviço de hospedagem ou proxy reverso. **Não exponha diretamente uma API sem proteção de abuso**: implemente rate limiting e monitoramento no proxy antes de abrir ao público.
+> **Limitação do Android:** algumas pastas, como a raiz de `Download`, podem impedir a concessão de acesso amplo. Nesses casos, escolha uma subpasta permitida. A correspondência entre títulos e legendas não é perfeita; confira os resultados quando necessário.
 
-Também é possível criar a imagem Docker: `docker build -t omegasub-backend backend`.
+## 🧩 Tecnologias
 
-## 2. Configurar a compilação Android
+| Tecnologia | Utilização |
+|---|---|
+| **Flutter / Dart** | Interface do aplicativo |
+| **Python + Subliminal** | Pesquisa de legendas |
+| **Chaquopy** | Python integrado ao APK Android |
+| **GitHub Actions** | Compilação automatizada |
 
-No repositório GitHub Android, abra **Settings → Secrets and variables → Actions → Variables → New repository variable**. Crie `OMEGASUB_API_URL` com a URL HTTPS do backend, por exemplo `https://SEU-SERVIDOR.example` (substitua por um endereço real).
+O projeto **não precisa de backend próprio** para a busca de legendas.
 
-Execute o workflow `Compilar OmegaSub Android`. O artifact será `OmegaSub.apk`. Se não configurar a URL, o APK ainda poderá compilar, mas mostrará mensagem de configuração ausente quando tentar pesquisar.
+## 🛠️ Desenvolvimento
 
-## 3. Funcionamento
+O código-fonte está neste repositório. A compilação Android é automatizada em **Actions**. Para desenvolver localmente, é necessário preparar o ambiente Flutter/Android e as dependências de integração Python descritas no projeto.
 
-- Escolha um arquivo de vídeo. O app extrai título, ano e episódio do **nome** do arquivo; não envia o vídeo ao servidor.
-- No modo automático, a pesquisa começa após a seleção. No modo manual, é possível ajustar o título.
-- O servidor usa Subliminal para consultar provedores PT-BR e devolve resultados classificados.
-- Selecione uma legenda e salve como `.srt` usando o seletor Android.
-- Resultados expiram após 20 minutos; se o download expirar, pesquise novamente.
+Contribuições, relatórios de erros e melhorias são bem-vindos. Leia o [guia de contribuição](CONTRIBUTING.md) antes de enviar alterações.
 
-## Limitações e segurança
+## ⚖️ Aviso legal
 
-- Não é Subliminal executando dentro do APK. É uma arquitetura cliente/servidor que evita dependências Python incompatíveis com Android.
-- Não foi validada uma compilação Flutter nem o funcionamento dos provedores reais neste ambiente. Teste o GitHub Actions e o celular antes de publicar como estável.
-- O Subliminal pode depender de provedores externos sujeitos a falhas, alterações, restrições e credenciais próprias.
-- Uma URL pública e infraestrutura do backend são necessárias; GitHub Pages não executa Python.
-- Não hospede legendas sem autorização; respeite direitos autorais e condições dos provedores.
+O OmegaSub é uma ferramenta de pesquisa e gerenciamento de legendas. **Não hospeda filmes ou séries** e depende de serviços externos para encontrar legendas. Respeite os direitos autorais e os termos dos provedores. Este projeto não é afiliado aos serviços de legendas consultados.
 
+## 📄 Licença
 
-Veja [MIGRACAO_LOCAL.md](MIGRACAO_LOCAL.md) para a versão experimental com Subliminal embutido.
+O código original deste repositório é disponibilizado sob a **[Licença MIT](LICENSE)**. Bibliotecas e dependências de terceiros mantêm suas próprias licenças.
 
+---
 
-## Correção experimental da dependência srt (22/11/2026)
+<div align="center">
 
-O GitHub Actions gera um wheel universal `srt==3.5.3` no CI e o Chaquopy o encontra via `--find-links`. Isso contorna o erro `No matching distributions ... srt` observado no log. A compilação e a busca no celular **ainda precisam ser validadas**; outras dependências podem falhar. Não remova o serviço Render antes de confirmar a busca e o download local.
+Desenvolvido por **[JulianoHOmega](https://github.com/JulianoHOmega)** ❤️
+
+**[⭐ Se o projeto foi útil, deixe uma estrela no GitHub!](https://github.com/JulianoHOmega/OmegaSub-Android)**
+
+</div>
