@@ -62,15 +62,34 @@ class SubtitleService {
   static const _origin = 'https://www.subtitlecat.com';
   static const _headers = {'User-Agent': 'OmegaSub-Android/0.2'};
 
+  static String _fold(String input) {
+    const from = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
+    const to =   'aaaaaeeeeiiiiooooouuuucn';
+    var result = input.toLowerCase();
+    for (var i = 0; i < from.length; i++) {
+      result = result.replaceAll(from[i], to[i]);
+    }
+    return result;
+  }
+
+  static String _decodeHtml(String value) => value
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&nbsp;', ' ');
+
   static List<Uri> parseSearchPage(String html) {
     final found = <Uri>[];
     final seen = <String>{};
-    final re = RegExp(r'''href\s*=\s*['"]([^'"]*subs/\d+/[^'"]+\.html)['"]''', caseSensitive: false);
+    // Aceita links relativos, absolutos, com ou sem barra inicial e query string.
+    final re = RegExp(r'''href\s*=\s*['"]([^'"]*?/subs/\d+/[^'"<>]+?\.html(?:\?[^'"]*)?|subs/\d+/[^'"<>]+?\.html(?:\?[^'"]*)?)['"]''', caseSensitive: false);
     for (final match in re.allMatches(html)) {
-      final url = Uri.parse(_origin).resolve(match.group(1)!.replaceAll('&amp;', '&'));
-      if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' && seen.add(url.toString())) {
+      final raw = _decodeHtml(match.group(1)!);
+      final url = Uri.parse(_origin).resolve(raw);
+      if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' &&
+          seen.add(url.toString())) {
         found.add(url);
-        if (found.length == 15) break;
+        if (found.length >= 25) break;
       }
     }
     return found;
@@ -83,26 +102,30 @@ class SubtitleService {
       final tag = match.group(0)!;
       final id = RegExp(r'''id\s*=\s*['"]download_([^'"]+)['"]''', caseSensitive: false)
           .firstMatch(tag)?.group(1)?.toLowerCase();
-      if (!{'pb', 'pt', 'pt-br', 'pt_br'}.contains(id)) continue;
+      if (!{'pb', 'pt', 'pt-br', 'pt_br', 'pob'}.contains(id)) continue;
       final href = RegExp(r'''href\s*=\s*['"]([^'"]+\.srt(?:\?[^'"]*)?)['"]''', caseSensitive: false)
           .firstMatch(tag)?.group(1);
       if (href == null) continue;
-      final url = Uri.parse(_origin).resolve(href.replaceAll('&amp;', '&'));
-      if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' && seen.add(url.toString())) found.add(url);
+      final url = Uri.parse(_origin).resolve(_decodeHtml(href));
+      if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' && seen.add(url.toString())) {
+        found.add(url);
+      }
     }
     return found;
   }
 
-  static int _score(VideoInfo video, String release) {
-    final normalized = _norm(release);
-    final words = _norm(video.title).split(' ').where((w) => w.length > 2);
+  static int _score(VideoInfo video, String release, {String? alternateTitle}) {
+    final normalized = _norm(_fold(release));
+    final candidate = _norm(_fold(alternateTitle ?? video.title));
+    final words = candidate.split(' ').where((w) => w.length > 2).toList();
     if (words.isEmpty || !words.every(normalized.contains)) return -1;
     if (video.year != null && RegExp(r'\b(?:19|20)\d{2}\b').hasMatch(release) &&
         !normalized.contains('${video.year}')) return -1;
     if (video.isEpisode) {
-      final episode = RegExp(r's(\d{1,2})[ ._-]*e(\d{1,2})', caseSensitive: false).firstMatch(release);
-      if (episode == null || int.parse(episode.group(1)!) != video.season ||
-          int.parse(episode.group(2)!) != video.episode) return -1;
+      final episode = RegExp(r's(\d{1,2})[ ._-]*e(\d{1,3})|(?<!\d)(\d{1,2})x(\d{1,3})', caseSensitive: false).firstMatch(release);
+      if (episode == null ||
+          int.parse((episode.group(1) ?? episode.group(3))!) != video.season ||
+          int.parse((episode.group(2) ?? episode.group(4))!) != video.episode) return -1;
     }
     var score = 60;
     if (video.year != null && normalized.contains('${video.year}')) score += 15;
@@ -114,37 +137,117 @@ class SubtitleService {
     return score;
   }
 
-  static Future<List<SubtitleEntry>> _searchPublic(VideoInfo video) async {
-    final query = [video.title, if (video.year != null) '${video.year}'].join(' ');
-    final uri = Uri.parse('$_origin/index.php').replace(queryParameters: {'search': query});
-    final response = await _client.get(uri, headers: _headers).timeout(const Duration(seconds: 18));
-    if (response.statusCode != 200) throw StateError('SubtitleCat indisponível (HTTP ${response.statusCode}).');
-    final results = <SubtitleEntry>[];
-    for (final page in parseSearchPage(utf8.decode(response.bodyBytes, allowMalformed: true))) {
-      final release = Uri.decodeComponent(page.pathSegments.last)
-          .replaceFirst(RegExp(r'\.html$', caseSensitive: false), '').replaceAll(RegExp(r'[._]+'), ' ');
-      final score = _score(video, release);
-      if (score < 0) continue;
-      try {
-        final detail = await _client.get(page, headers: _headers).timeout(const Duration(seconds: 12));
-        if (detail.statusCode != 200) continue;
-        for (final link in parsePortugueseLinks(utf8.decode(detail.bodyBytes, allowMalformed: true))) {
-          results.add(SubtitleEntry(title: video.title, release: release, language: 'pt-br',
-            url: link.toString(), provider: 'SubtitleCat', year: video.year,
-            season: video.season, episode: video.episode, score: score));
+  static List<String> buildSearchQueries(VideoInfo video, {String? alternateTitle}) {
+    final titles = <String>[
+      video.title,
+      if (alternateTitle != null && alternateTitle.trim().isNotEmpty) alternateTitle.trim(),
+    ];
+    final result = <String>[];
+    final seen = <String>{};
+    for (final title in titles) {
+      final variants = [title, _fold(title)];
+      for (final variant in variants) {
+        for (final q in [
+          if (video.year != null) '$variant ${video.year}',
+          if (video.isEpisode) '$variant S${video.season.toString().padLeft(2, '0')}E${video.episode.toString().padLeft(2, '0')}',
+          variant,
+        ]) {
+          final clean = q.trim();
+          if (clean.isNotEmpty && seen.add(clean.toLowerCase())) result.add(clean);
         }
-      } catch (_) { /* Prossegue com os demais candidatos. */ }
+      }
     }
-    results.sort((a,b) => b.score.compareTo(a.score));
+    return result;
+  }
+
+  static Future<List<SubtitleEntry>> _searchPublic(VideoInfo video,
+      {String? alternateTitle, void Function(String)? onProgress}) async {
+    final queries = buildSearchQueries(video, alternateTitle: alternateTitle);
+    final pages = <Uri>[];
+    final seenPages = <String>{};
+    var succeeded = 0;
+    final failures = <String>[];
+    for (var i = 0; i < queries.length; i++) {
+      final query = queries[i];
+      onProgress?.call('Pesquisando: $query (${i + 1}/${queries.length})...');
+      try {
+        final uri = Uri.parse('$_origin/index.php')
+            .replace(queryParameters: {'search': query});
+        final response = await _client.get(uri, headers: _headers)
+            .timeout(const Duration(seconds: 12));
+        if (response.statusCode != 200) {
+          failures.add('HTTP ${response.statusCode}');
+          continue;
+        }
+        succeeded++;
+        final html = utf8.decode(response.bodyBytes, allowMalformed: true);
+        for (final page in parseSearchPage(html)) {
+          if (seenPages.add(page.toString())) pages.add(page);
+        }
+      } catch (e) {
+        failures.add('$e');
+      }
+      if (pages.length >= 20) break;
+    }
+    if (succeeded == 0) {
+      throw StateError('A fonte não respondeu às pesquisas. '
+          '${failures.isEmpty ? 'Verifique a conexão.' : failures.first}');
+    }
+    if (pages.isEmpty) {
+      throw StateError('A fonte respondeu, mas não retornou links reconhecíveis. '
+          'O formato do site pode ter mudado ou a pesquisa não encontrou títulos.');
+    }
+    final results = <SubtitleEntry>[];
+    var detailsOk = 0;
+    for (var i = 0; i < pages.length && i < 20; i++) {
+      final page = pages[i];
+      final release = Uri.decodeComponent(page.pathSegments.last)
+          .replaceFirst(RegExp(r'\.html$', caseSensitive: false), '')
+          .replaceAll(RegExp(r'[._]+'), ' ');
+      final score = _score(video, release);
+      final alternateScore = alternateTitle == null ? -1
+          : _score(video, release, alternateTitle: alternateTitle);
+      final bestScore = score > alternateScore ? score : alternateScore;
+      if (bestScore < 0) continue;
+      onProgress?.call('Verificando legendas PT-BR (${i + 1}/${pages.length})...');
+      try {
+        final detail = await _client.get(page, headers: _headers)
+            .timeout(const Duration(seconds: 10));
+        if (detail.statusCode != 200) continue;
+        detailsOk++;
+        for (final link in parsePortugueseLinks(
+            utf8.decode(detail.bodyBytes, allowMalformed: true))) {
+          results.add(SubtitleEntry(title: video.title, release: release,
+              language: 'pt-br', url: link.toString(), provider: 'SubtitleCat',
+              year: video.year, season: video.season, episode: video.episode,
+              score: bestScore));
+        }
+      } catch (_) {
+        // Falha em uma página não cancela as demais.
+      }
+    }
+    if (results.isEmpty && detailsOk == 0) {
+      throw StateError('Resultados encontrados, mas nenhuma página de detalhes '
+          'pôde ser lida. O site pode estar bloqueando o acesso.');
+    }
+    results.sort((a, b) => b.score.compareTo(a.score));
     return results;
   }
 
-  static Future<List<SubtitleEntry>> search(VideoInfo video) async {
-    if (catalogUrl.isEmpty) return _searchPublic(video);
+  static Future<List<SubtitleEntry>> search(VideoInfo video,
+      {String? alternateTitle, void Function(String)? onProgress}) async {
+    if (catalogUrl.isEmpty) {
+      return _searchPublic(video, alternateTitle: alternateTitle,
+          onProgress: onProgress);
+    }
+    onProgress?.call('Consultando catálogo...');
     final uri = Uri.parse(catalogUrl);
     if (uri.scheme != 'https') throw StateError('O catálogo deve usar HTTPS.');
-    final response = await _client.get(uri, headers: {'Accept':'application/json'}).timeout(const Duration(seconds:15));
-    if (response.statusCode != 200) throw StateError('Catálogo indisponível (HTTP ${response.statusCode}).');
+    final response = await _client.get(uri, headers: {'Accept': 'application/json'})
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw StateError('Catálogo indisponível (HTTP ${response.statusCode}).');
+    }
     return parseCatalog(utf8.decode(response.bodyBytes), video);
   }
 

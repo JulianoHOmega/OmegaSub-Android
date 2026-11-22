@@ -40,34 +40,55 @@ class _OmegaHomeState extends State<OmegaHome> {
   List<SubtitleEntry> results = [];
   SubtitleEntry? selected;
   bool busy = false;
+  bool pickingVideo = false;
+  String? alternateTitle;
+  int _searchSequence = 0;
   bool automatic = true;
   String status = 'Selecione um vídeo para começar.';
   final queryController = TextEditingController();
+  final alternateController = TextEditingController();
 
   @override
   void dispose() {
     queryController.dispose();
+    alternateController.dispose();
     super.dispose();
   }
 
   Future<void> pickVideo() async {
+    if (busy || pickingVideo) return;
+    setState(() {
+      pickingVideo = true;
+      status = 'Abrindo seletor de vídeos... Aguarde.';
+    });
     try {
+      // Permite desenhar o indicador antes de abrir o seletor nativo.
+      await Future<void>.delayed(const Duration(milliseconds: 80));
       final picked = await FilePicker.platform.pickFiles(
           type: FileType.custom,
           allowedExtensions: ['mp4', 'mkv', 'avi', 'mov', 'webm', 'm4v', 'wmv']);
-      if (picked == null || picked.files.isEmpty) return;
+      if (picked == null || picked.files.isEmpty) {
+        if (mounted) setState(() => status = 'Seleção cancelada.');
+        return;
+      }
+      if (mounted) setState(() => status = 'Identificando o vídeo selecionado...');
       final parsed = VideoInfo.parse(picked.files.single.name);
       if (!mounted) return;
       setState(() {
         video = parsed;
+        alternateTitle = null;
+        alternateController.clear();
         results = [];
         selected = null;
         queryController.text = parsed.title;
         status = 'Vídeo selecionado: ${parsed.fileName}';
       });
+      if (mounted) setState(() => pickingVideo = false);
       if (automatic) await search();
     } catch (e) {
       if (mounted) setState(() => status = 'Erro ao selecionar vídeo: $e');
+    } finally {
+      if (mounted) setState(() => pickingVideo = false);
     }
   }
 
@@ -79,6 +100,7 @@ class _OmegaHomeState extends State<OmegaHome> {
     }
     final q = automatic ? v.title : queryController.text.trim();
     final target = q.isEmpty ? v : VideoInfo(v.fileName, q, v.year, v.season, v.episode);
+    final searchId = ++_searchSequence;
     setState(() {
       busy = true;
       results = [];
@@ -86,13 +108,19 @@ class _OmegaHomeState extends State<OmegaHome> {
       status = 'Procurando legendas PT-BR...';
     });
     try {
-      final list = await SubtitleService.search(target);
+      final list = await SubtitleService.search(target,
+          alternateTitle: alternateTitle,
+          onProgress: (message) {
+            if (mounted && searchId == _searchSequence) {
+              setState(() => status = message);
+            }
+          });
       if (!mounted) return;
       setState(() {
         results = list;
         selected = list.isEmpty ? null : list.first;
         status = list.isEmpty
-            ? 'Nenhuma legenda PT-BR pronta encontrada nesta fonte.'
+            ? 'A fonte respondeu, mas não foram encontradas legendas PT-BR prontas para esse título. Tente informar o título original no modo manual.'
             : '${list.length} legenda(s) encontrada(s).';
       });
     } catch (e) {
@@ -152,9 +180,16 @@ class _OmegaHomeState extends State<OmegaHome> {
                       style: TextStyle(color: Colors.white70))),
               const SizedBox(height: 24),
               FilledButton.icon(
-                  onPressed: busy ? null : pickVideo,
+                  onPressed: busy || pickingVideo ? null : pickVideo,
                   icon: const Icon(Icons.video_file),
                   label: const Text('Selecionar vídeo')),
+              if (pickingVideo) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(),
+                const SizedBox(height: 5),
+                const Text('Carregando seletor de vídeos... Aguarde.',
+                    style: TextStyle(color: Colors.white70)),
+              ],
               const SizedBox(height: 12),
               Text(video == null
                   ? 'Nenhum vídeo selecionado'
@@ -175,7 +210,7 @@ class _OmegaHomeState extends State<OmegaHome> {
                     ? 'A busca inicia ao selecionar o vídeo.'
                     : 'Digite ou corrija o título antes de buscar.'),
                 value: automatic,
-                onChanged: busy ? null : (value) => setState(() => automatic = value),
+                onChanged: busy || pickingVideo ? null : (value) => setState(() => automatic = value),
               ),
               if (!automatic) ...[
                 const SizedBox(height: 10),
@@ -187,10 +222,21 @@ class _OmegaHomeState extends State<OmegaHome> {
                         labelText: 'Título para pesquisa',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.search))),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: alternateController,
+                  onChanged: (value) => alternateTitle = value.trim().isEmpty ? null : value.trim(),
+                  decoration: const InputDecoration(
+                    labelText: 'Título original / alternativo (opcional)',
+                    hintText: 'Ex.: The Odyssey',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.translate),
+                  ),
+                ),
               ],
               const SizedBox(height: 12),
               FilledButton.icon(
-                  onPressed: busy ? null : search,
+                  onPressed: busy || pickingVideo ? null : search,
                   icon: const Icon(Icons.search),
                   label: const Text('Buscar legendas PT-BR')),
               const SizedBox(height: 14),
