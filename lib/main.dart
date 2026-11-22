@@ -92,7 +92,7 @@ class _OmegaHomeState extends State<OmegaHome> {
         results = list;
         selected = list.isEmpty ? null : list.first;
         status = list.isEmpty
-            ? 'Nenhuma legenda PT-BR encontrada no catálogo.'
+            ? 'Nenhuma legenda PT-BR pronta encontrada nesta fonte.'
             : '${list.length} legenda(s) encontrada(s).';
       });
     } catch (e) {
@@ -219,7 +219,7 @@ class _OmegaHomeState extends State<OmegaHome> {
                   label: const Text('Baixar legenda selecionada')),
               const SizedBox(height: 18),
               const Text(
-                  'A busca requer uma fonte pública autorizada configurada pelo projeto. Nenhuma chave é solicitada ao usuário.',
+                  'Fonte experimental: SubtitleCat. Somente legendas PT-BR já disponíveis. A busca depende da disponibilidade do site.',
                   style: TextStyle(fontSize: 12, color: Colors.white54)),
             ],
           ),
