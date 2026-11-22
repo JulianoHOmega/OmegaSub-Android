@@ -20,6 +20,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Instalar Python 3.11 para Chaquopy
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Informar caminho do Python ao Gradle
+        shell: bash
+        run: |
+          PYTHON_EXECUTABLE="$(python -c 'import sys; print(sys.executable)')"
+          echo "OMEGASUB_BUILD_PYTHON=$PYTHON_EXECUTABLE" >> "$GITHUB_ENV"
+          "$PYTHON_EXECUTABLE" --version
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
