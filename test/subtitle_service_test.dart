@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omegasub_android/subtitle_service.dart';
 
 void main() {
-  test('bloqueia download externo ao backend', () async {
+  test('rejeita identificador de download externo', () async {
     await expectLater(
       SubtitleService.download(const SubtitleEntry(
         title: 'Filme', release: 'Filme', language: 'PT-BR',

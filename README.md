@@ -39,3 +39,6 @@ Execute o workflow `Compilar OmegaSub Android`. O artifact será `OmegaSub.apk`.
 - O Subliminal pode depender de provedores externos sujeitos a falhas, alterações, restrições e credenciais próprias.
 - Uma URL pública e infraestrutura do backend são necessárias; GitHub Pages não executa Python.
 - Não hospede legendas sem autorização; respeite direitos autorais e condições dos provedores.
+
+
+Veja [MIGRACAO_LOCAL.md](MIGRACAO_LOCAL.md) para a versão experimental com Subliminal embutido.

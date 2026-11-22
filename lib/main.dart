@@ -265,7 +265,7 @@ class _OmegaHomeState extends State<OmegaHome> {
                   label: const Text('Baixar legenda selecionada')),
               const SizedBox(height: 18),
               const Text(
-                  'Fonte experimental: SubtitleCat. Somente legendas PT-BR já disponíveis. A busca depende da disponibilidade do site.',
+                  'Busca local com Subliminal. É necessária conexão à internet para consultar os provedores.',
                   style: TextStyle(fontSize: 12, color: Colors.white54)),
             ],
           ),
