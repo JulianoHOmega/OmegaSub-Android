@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'subtitle_service.dart';
 import 'video_info.dart';
@@ -148,8 +149,28 @@ class _OmegaHomeState extends State<OmegaHome> {
     try {
       final Uint8List bytes = await SubtitleService.download(item);
       final filename = '${video!.fileName.replaceFirst(RegExp(r'\.[^.]+$'), '')}.srt';
-      final path = await FlutterFileDialog.saveFile(
-          params: SaveFileDialogParams(data: bytes, fileName: filename));
+      String? path;
+      try {
+        final saved = await const MethodChannel('omegasub/storage')
+            .invokeMethod<String>('saveBesideVideo', {
+              'bytes': bytes,
+              'filename': filename,
+              'videoFilename': video!.fileName,
+            });
+        path = saved == 'saved' ? filename : null;
+      } on PlatformException catch (e) {
+        if (e.code == 'WRONG_FOLDER') {
+          if (mounted) setState(() => status = e.message ?? 'Selecione a pasta do vídeo.');
+          return;
+        }
+        // Se o armazenamento nativo não estiver disponível, mantém a opção manual.
+        if (e.code != 'MissingPluginException') rethrow;
+        path = await FlutterFileDialog.saveFile(
+            params: SaveFileDialogParams(data: bytes, fileName: filename));
+      } on MissingPluginException {
+        path = await FlutterFileDialog.saveFile(
+            params: SaveFileDialogParams(data: bytes, fileName: filename));
+      }
       if (mounted) {
         setState(() => status = path == null
             ? 'Salvamento cancelado.'

@@ -2,6 +2,8 @@
 import json
 import secrets
 import threading
+import re
+import unicodedata
 from babelfish import Language
 from subliminal import list_subtitles, download_subtitles
 from subliminal.video import Movie, Episode
@@ -17,6 +19,29 @@ def _score(sub, video):
         return int(value[0] if isinstance(value, (tuple, list)) else value)
     except Exception:
         return 0
+
+def _normalize(text):
+    text = unicodedata.normalize('NFKD', str(text)).encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]+', ' ', text).strip()
+
+def _valid(sub, video, release, year):
+    # Rejeita resultados sem evidência de correspondência (ex.: séries aleatórias).
+    try:
+        matches = set(sub.get_matches(video))
+    except Exception:
+        matches = set()
+    if not ({'title', 'series', 'hash', 'imdb_id'} & matches):
+        return False
+    if year is not None:
+        # Se o arquivo declara outro ano, não pertence ao filme selecionado.
+        years = {int(x) for x in re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', release)}
+        if years and int(year) not in years:
+            return False
+    if isinstance(video, Episode):
+        match = re.search(r'(?i)\bS(\d{1,2})[ ._-]*E(\d{1,3})\b', release)
+        if match and (int(match.group(1)) != video.season or int(match.group(2)) not in video.episodes):
+            return False
+    return True
 
 def search(payload):
     req = json.loads(payload)
@@ -42,6 +67,8 @@ def search(payload):
         for sub in subtitles[:100]:
             provider = str(getattr(sub, 'provider_name', 'Subliminal'))
             release = str(getattr(sub, 'release_info', None) or getattr(sub, 'release', None) or getattr(sub, 'filename', None) or 'Versão não informada')[:160]
+            if _score(sub, video) <= 0 or not _valid(sub, video, release, year):
+                continue
             key = (provider, str(getattr(sub, 'id', release)))
             if key in seen:
                 continue
