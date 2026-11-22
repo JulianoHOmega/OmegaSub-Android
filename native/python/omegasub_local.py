@@ -25,15 +25,10 @@ def _normalize(text):
     return re.sub(r'[^a-z0-9]+', ' ', text).strip()
 
 def _valid(sub, video, release, year):
-    # Rejeita resultados sem evidência de correspondência (ex.: séries aleatórias).
-    try:
-        matches = set(sub.get_matches(video))
-    except Exception:
-        matches = set()
-    if not ({'title', 'series', 'hash', 'imdb_id'} & matches):
-        return False
+    """Filtro conservador: não exige get_matches, que pode ser vazio em
+    provedores válidos. Descarta incompatibilidade explícita de ano/episódio.
+    """
     if year is not None:
-        # Se o arquivo declara outro ano, não pertence ao filme selecionado.
         years = {int(x) for x in re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', release)}
         if years and int(year) not in years:
             return False
