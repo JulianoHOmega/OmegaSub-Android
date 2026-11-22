@@ -1,45 +1,41 @@
-# OmegaSub Android · Flutter
+# OmegaSub Android — Flutter + Subliminal
 
-Aplicativo Android independente do OmegaSub Windows/Linux. Identifica filmes e episódios pelo nome do arquivo, tem modo automático como padrão, visual escuro e ícone original. O usuário não precisa criar conta ou inserir chave.
+Este projeto mantém a interface Flutter e o ícone OmegaSub. A busca de legendas é feita **pelo Subliminal Python**, executado em um backend HTTPS. O APK não precisa de chave de API nem de conta para o usuário final, mas **depende de um servidor mantido pelo responsável pelo aplicativo**.
 
-## Status real
+## 1. Iniciar o backend Python
 
-**Versão 0.1 experimental.** Interface, identificação, seleção de vídeo, ranking e download de `.srt`/ZIP estão implementados. **A busca real ainda exige conectar um catálogo autorizado de legendas**. Não há provedor público funcional embutido: sem `OMEGASUB_CATALOG_URL`, o aplicativo informa claramente que falta configurar a fonte. Não confundir APK compilado com mecanismo de busca validado. O projeto não usa Subliminal, Python ou Chaquopy.
+Em um computador/servidor com Python 3.12:
 
-## GitHub Actions — gerar OmegaSub.apk
-
-Envie **todo o conteúdo desta pasta** à raiz do repositório `JulianoHOmega/OmegaSub-Android`, incluindo `.github/workflows/android-apk.yml`. Após o commit, abra **Actions → Compilar OmegaSub Android**, aguarde e baixe o artefato `OmegaSub-Android`. Dentro estará `OmegaSub.apk` (APK de depuração para teste; não é release assinada para distribuição pública).
-
-O workflow cria automaticamente os arquivos padrão de plataforma Android usando `flutter create`, aplica o ícone, executa análise/testes e compila. Não é necessário instalar Flutter no computador. Isso exige internet e depende da versão estável do Flutter e das dependências publicadas.
-
-## Busca sem chave para usuários
-
-O mecanismo suporta um catálogo JSON público HTTPS, mantido por quem distribui o aplicativo ou por uma fonte autorizada. O formato é:
-
-```json
-{"subtitles":[{"title":"Exemplo","year":2026,"language":"pt-br","release":"Exemplo.2026.1080p","provider":"Fonte autorizada","url":"https://example.org/exemplo.srt"}]}
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Para episódios, inclua `season` e `episode`. URLs devem ser HTTPS e apontar para arquivos `.srt` ou `.zip` com `.srt`. **Não coloque legendas sem direito de redistribuição no catálogo.** Para ativar a fonte no build, altere a etapa `Compilar APK` do workflow para:
+Teste: `http://127.0.0.1:8000/health`. Para acesso de celulares externos, publique o backend com **HTTPS**, usando um serviço de hospedagem ou proxy reverso. **Não exponha diretamente uma API sem proteção de abuso**: implemente rate limiting e monitoramento no proxy antes de abrir ao público.
 
-```
-flutter build apk --debug --dart-define=OMEGASUB_CATALOG_URL=https://seu-dominio/catalog.json
-```
+Também é possível criar a imagem Docker: `docker build -t omegasub-backend backend`.
 
-A fonte pode ser um arquivo público autorizado no GitHub Pages. Isso não é equivalente ao catálogo global do Subliminal: são necessários acordos ou provedores públicos autorizados para alcançar cobertura semelhante. APIs oficiais como SubDL e OpenSubtitles exigem credenciais de aplicação; não inclua chaves privadas em APKs públicos.
+## 2. Configurar a compilação Android
 
-## Desenvolvimento local
+No repositório GitHub Android, abra **Settings → Secrets and variables → Actions → Variables → New repository variable**. Crie `OMEGASUB_API_URL` com a URL HTTPS do backend, por exemplo `https://SEU-SERVIDOR.example` (substitua por um endereço real).
 
-```
-flutter create --platforms=android --project-name omegasub_android --org com.omegasub .
-flutter pub get
-dart run flutter_launcher_icons
-flutter test
-flutter build apk --debug
-```
+Execute o workflow `Compilar OmegaSub Android`. O artifact será `OmegaSub.apk`. Se não configurar a URL, o APK ainda poderá compilar, mas mostrará mensagem de configuração ausente quando tentar pesquisar.
 
-Se usar `flutter create` localmente, configure permissão `android.permission.INTERNET` e nome `OmegaSub` no AndroidManifest, como faz o workflow.
+## 3. Funcionamento
 
-## Separação do projeto desktop
+- Escolha um arquivo de vídeo. O app extrai título, ano e episódio do **nome** do arquivo; não envia o vídeo ao servidor.
+- No modo automático, a pesquisa começa após a seleção. No modo manual, é possível ajustar o título.
+- O servidor usa Subliminal para consultar provedores PT-BR e devolve resultados classificados.
+- Selecione uma legenda e salve como `.srt` usando o seletor Android.
+- Resultados expiram após 20 minutos; se o download expirar, pesquise novamente.
 
-Este repositório não contém os arquivos do programa PC. Depois de confirmar que a cópia antiga está salva, é seguro remover do repositório desktop `android/`, `.github/workflows/build-android.yml` e `ANDROID-LEIA-ME.md`. Não remova `.github/workflows/build-windows.yml` nem `.github/workflows/build-linux.yml`.
+## Limitações e segurança
+
+- Não é Subliminal executando dentro do APK. É uma arquitetura cliente/servidor que evita dependências Python incompatíveis com Android.
+- Não foi validada uma compilação Flutter nem o funcionamento dos provedores reais neste ambiente. Teste o GitHub Actions e o celular antes de publicar como estável.
+- O Subliminal pode depender de provedores externos sujeitos a falhas, alterações, restrições e credenciais próprias.
+- Uma URL pública e infraestrutura do backend são necessárias; GitHub Pages não executa Python.
+- Não hospede legendas sem autorização; respeite direitos autorais e condições dos provedores.
