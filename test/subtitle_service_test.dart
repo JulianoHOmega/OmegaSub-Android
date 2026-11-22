@@ -19,6 +19,12 @@ void main() {
     expect(queries, contains('The Odyssey'));
     expect(queries, contains('A odisseia'));
   });
+  test('segmentos com porcentagem não exigem segunda decodificação', () {
+    final links = SubtitleService.parseSearchPage(
+      '<a href="/subs/123/Filme.100%25.Completo.html">Filme</a>');
+    expect(links.length, 1);
+    expect(links.single.pathSegments.last, contains('100%'));
+  });
   test('reconhece links de resultados absolutos', () {
     final links = SubtitleService.parseSearchPage(
       '<a href="https://www.subtitlecat.com/subs/123/Filme.2026.html">Filme</a>');

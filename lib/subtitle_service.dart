@@ -85,7 +85,10 @@ class SubtitleService {
     final re = RegExp(r'''href\s*=\s*['"]([^'"]*?/subs/\d+/[^'"<>]+?\.html(?:\?[^'"]*)?|subs/\d+/[^'"<>]+?\.html(?:\?[^'"]*)?)['"]''', caseSensitive: false);
     for (final match in re.allMatches(html)) {
       final raw = _decodeHtml(match.group(1)!);
-      final url = Uri.parse(_origin).resolve(raw);
+      // Links externos podem conter '%' solto: ignore apenas o link inválido.
+      final relative = Uri.tryParse(raw);
+      if (relative == null) continue;
+      final url = Uri.parse(_origin).resolveUri(relative);
       if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' &&
           seen.add(url.toString())) {
         found.add(url);
@@ -106,7 +109,9 @@ class SubtitleService {
       final href = RegExp(r'''href\s*=\s*['"]([^'"]+\.srt(?:\?[^'"]*)?)['"]''', caseSensitive: false)
           .firstMatch(tag)?.group(1);
       if (href == null) continue;
-      final url = Uri.parse(_origin).resolve(_decodeHtml(href));
+      final relative = Uri.tryParse(_decodeHtml(href));
+      if (relative == null) continue;
+      final url = Uri.parse(_origin).resolveUri(relative);
       if (url.scheme == 'https' && url.host == 'www.subtitlecat.com' && seen.add(url.toString())) {
         found.add(url);
       }
@@ -201,7 +206,9 @@ class SubtitleService {
     var detailsOk = 0;
     for (var i = 0; i < pages.length && i < 20; i++) {
       final page = pages[i];
-      final release = Uri.decodeComponent(page.pathSegments.last)
+      // pathSegments já retorna o segmento decodificado. Uma segunda
+      // decodificação quebra nomes contendo '%' (Illegal percent encoding).
+      final release = page.pathSegments.last
           .replaceFirst(RegExp(r'\.html$', caseSensitive: false), '')
           .replaceAll(RegExp(r'[._]+'), ' ');
       final score = _score(video, release);
